@@ -839,7 +839,7 @@ int _isatty(int file) { return 1; }
 
 ![Screenshot 2025-06-08 221727](https://github.com/user-attachments/assets/f22e23a5-68ae-4614-8504-1aac09553159)
 
-### My file got compiled but qemu is unable to show the output as it's cursor infinitely got stuck and could be resolved by ctrl A + X
+### My file got compiled but qemu is unable to show the output as itS cursor infinitely got stuck and could be resolved by ctrl A + X
 
 ## 📘 What is RISC-V?
 
