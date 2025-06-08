@@ -17,7 +17,7 @@ echo 'export PATH=$PATH:$HOME/Downloads/opt/riscv/bin' >> ~/.bashrc
 
 Then apply the change:
 ```bash
-Then apply the change:
+source ~/.bashrc
 ```
 Step 3: Verify the Installation
 Run the following commands to check that the RISC-V tools are installed correctly:
@@ -397,7 +397,7 @@ Step 3: Key Differences to Look For and Why They Occur
 
 
 
-#Task 9: Inline Assembly Basics
+# Task 9: Inline Assembly Basics
 
  Goal
 
@@ -485,6 +485,253 @@ Why Flash and SRAM Addresses Differ</strong></summary><br>
   - Faster and writable, unlike Flash.
 
  During startup, boot code usually copies .data from Flash to SRAM and zeros .bss, so variables are correctly initialized.
+
+ # Task 12:  Start-up Code & crt0
+ *Question*
+
+“What does crt0.S typically do in a bare-metal RISC-V program and where do I get one?”
+
+---
+
+What is `crt0.S`?
+  
+- crt0.S is the "C Runtime Zero" file — the very first code that runs before main() in a bare-metal program.
+
+- It's written in assembly and is architecture-specific.
+
+- It performs system-level initialization that C programs assume has already been done.
+
+
+Key Responsibilities of `crt0.S`
+  
+- Set the Stack Pointer (sp)
+
+  - Stack is essential for calling C functions.
+
+  - crt0 sets sp to a known safe memory location (usually top of RAM).
+
+- Zero out .bss section
+
+  - .bss holds uninitialized global/static variables, which should start as 0.
+
+  - crt0 clears this region with a loop.
+
+- Copy .data from Flash to RAM
+
+  - .data holds initialized globals.
+
+  - crt0 copies them from ROM (Flash) to SRAM.
+
+- Call main()
+
+  - After setting everything up, crt0 branches to your main program.
+
+  - Infinite Loop After main Returns
+
+  - If main() returns, crt0 halts or spins forever to prevent undefined behavior.
+
+Where to Get `crt0.S`
+
+- Option 1: Write Your Own
+
+  - Very short (usually ~30–50 lines of RISC-V assembly).
+
+- Option 2: Use from a Runtime Library
+
+- Newlib and libc implementations often include crt0.S.
+
+- You can extract one from:
+
+  - newlib source
+
+  - SiFive’s freedom-e-sdk
+ 
+  example of crt0.s:
+  ![Screenshot 2025-06-07 012342](https://github.com/user-attachments/assets/50007613-de38-417a-bb39-db9e5e8f50b0)
+
+  # Task 13: Interrupt Primer
+
+## Question
+
+**Demonstrate how to enable the machine-timer interrupt (MTIP) and write a simple handler in C/asm.**
+
+## Answer Highlights
+
+- Write to mtimecmp
+
+- Set mie (enable machine timer interrupt)
+
+- Set mstatus (enable global interrupt)
+
+- Point mtvec to a valid handler
+
+- Use __attribute__((interrupt)) in C
+
+CODE FOR IT:
+![Screenshot 2025-06-07 012729](https://github.com/user-attachments/assets/0e46be1c-3123-4078-ba50-c977e4e865a8)
+![Screenshot 2025-06-07 012749](https://github.com/user-attachments/assets/03c35dd6-5e75-4fb8-bd4d-8e35cbe270c9)
+
+
+
+
+# Task 14: rv32imac vs rv32imc – What’s the “A”?
+
+### ❓ Question  
+**“Explain the ‘A’ (atomic) extension in rv32imac. What instructions are added and why are they useful?”**
+
+---
+
+### What is the “A” Extension?
+
+- The **“A” stands for Atomic** — it adds **atomic read-modify-write** instructions.
+- These instructions allow for **safe, hardware-supported access to shared memory**.
+- It is used when multiple cores/threads need to access the same variable without conflicts.
+
+---
+
+###  Instructions Introduced by the "A" Extension
+
+| Instruction   | Meaning                             | Purpose                            |
+|---------------|--------------------------------------|-------------------------------------|
+| `lr.w`        | Load-Reserved word                   | Starts an atomic load-store block   |
+| `sc.w`        | Store-Conditional word               | Stores only if no one else touched |
+| `amoadd.w`    | Atomic add                           | Adds a value atomically             |
+| `amoswap.w`   | Atomic swap                          | Atomically swaps memory             |
+| `amoand.w`    | Atomic AND                           | Useful for bitmask flags            |
+| `amoor.w`     | Atomic OR                            | Used in setting flags atomically    |
+
+---
+
+###  Use Cases
+
+- **Operating Systems**: Manage shared memory between tasks/interrupts.
+- **Multithreading**: Protect shared counters or variables.
+- **Lock-Free Data Structures**: Like queues or stacks, to avoid performance penalties from locking.
+
+---
+
+###  Analogy
+
+Imagine you're writing on a shared whiteboard:
+
+- `lr.w` → You reserve a spot to write.  
+- `sc.w` → You try to write, but **only succeed if no one else has written there** since you reserved it.  
+- `amoadd.w` → You **add a number** to the current value, and it's done **safely**, even if others are trying at the same time.
+
+---
+
+### Why These Instructions Are Useful:
+- **Synchronization**: Essential for implementing synchronization primitives like locks, mutexes, and semaphores in multi-core systems. For example, `lr.w/sc.w` can implement a spinlock.
+- **Data Consistency**: Prevent race conditions when multiple harts access shared variables (e.g., counters, queues). `amoadd.w` can atomically increment a shared counter.
+- **Efficiency**: AMOs perform complex operations in one instruction, reducing software overhead. LR/SC allows flexible atomic operations with minimal hardware complexity.
+- **Scalability**: In multi-core SoCs, atomic instructions ensure scalable synchronization without relying on global bus locks, which degrade performance.
+- **Use Cases**: Operating systems (thread scheduling, resource allocation), bare-metal (coordinating harts), atomic counters, lock-free data structures, interrupt-safe updates.
+
+
+### Summary
+
+- The “A” extension makes **safe concurrent memory access** possible in RISC-V.
+- It is essential for low-level OS and embedded systems programming.
+- It **distinguishes `rv32imac` (which supports atomics)** from `rv32imc` (which does not).
+
+atomic code:
+![Screenshot 2025-06-07 013106](https://github.com/user-attachments/assets/6c99d140-a805-4fed-9d57-aafaa6326ef3)
+
+# Task 15: Atomic Test Program
+
+Question:
+
+“Provide a two-thread mutex example (pseudo-threads in main) using lr.w/sc.w on RV32.”
+
+---
+
+Method:
+- Simulate two threads using functions in main.
+
+- Use lr.w/sc.w instructions in inline assembly for spinlock mutex.
+
+- Demonstrate protection of a shared variable (shared_counter) from race conditions.
+
+![Screenshot 2025-06-07 013341](https://github.com/user-attachments/assets/9d90c1ff-01dc-4706-9822-dba205af431c)
+![Screenshot 2025-06-07 013359](https://github.com/user-attachments/assets/c7a42f97-ffeb-4f60-93ea-bfc6a1582b0f)
+
+
+
+
+
+Expected Output:
+
+```vbnet
+Shared counter: 3
+```
+Each function locks the variable, modifies it safely, and releases the lock.
+
+---
+
+### Concepts
+- Spinlock: A busy-wait loop that tries acquiring a lock until it succeeds.
+
+- lr.w / sc.w: RISC-V atomic pair that guarantees safe update without interference.
+
+- Volatile: Prevents compiler from caching or optimizing memory accesses.
+
+- Pseudo-threads: We simulate threads using plain functions to show locking logic.
+
+# Task 16: Using Newlib `printf` Without an OS
+
+This task shows how to **redirect `printf` output to UART** in a **bare-metal RISC-V** program by retargeting the `_write()` syscall.
+
+---
+- Implement `_write(int fd, char* buf, int len)` that loops over bytes to `UART_TX`.
+- Re-link with `-nostartfiles` plus custom `syscalls.c`.
+- Run in QEMU and verify UART output.
+
+
+Important Note on UART Address
+
+When running on QEMU with `-machine sifive_e`, the **UART memory-mapped I/O address is `0x10013000`**, not `0x10000000`. Using the wrong address will cause no output and program hang.
+
+---
+
+step 1: using the original ira.c file
+Step 2: Create syscalls.c
+
+
+![Screenshot 2025-06-07 013755](https://github.com/user-attachments/assets/688020b9-c22f-4bf3-be8f-ebdd51498c30)
+
+
+![Screenshot 2025-06-07 013814](https://github.com/user-attachments/assets/8dcc4edc-e2cc-46a9-ab46-caec94116060)
+
+step 3 : compile with 
+```bash
+riscv32-unknown-elf-gcc -nostartfiles -o ira.elf ira.c syscalls1.c
+```
+
+ Step 6: Run in QEMU
+
+```bash
+qemu-system-riscv32 -nographic -machine sifive_e -kernel ira.elf
+```
+
+# Task 17:
+
+The weekly tasks were designed to build our understanding of embedded systems using RISC-V from the ground up. Each step removed layers of abstraction that modern operating systems usually hide from us.
+
+| Task | Concept |
+|------|---------|
+| **Toolchain Setup** | We learned how to compile C code into RISC-V ELF binaries using a cross-compiler. |
+| **Disassembly & `info reg`** | We analyzed how our C code translates into assembly and how CPU registers change at runtime. |
+| **Memory-Mapped I/O** | We saw how to control hardware directly by writing to specific memory addresses. |
+| **Linker Scripts** | We controlled where code and data sections are placed in memory, crucial for bare-metal systems. |
+| **Start-up Code (`crt0.S`)** | We understood what happens before `main()` runs: setting the stack, zeroing `.bss`, and transferring control. |
+| **Interrupts** | We configured and handled timer interrupts, learning how CPUs respond to asynchronous events. |
+| **Atomic Operations & Endianness** | We explored concurrency control using `lr/sc` and verified byte ordering in memory. |
+| **Retargeting `printf` via UART** | We enabled output without an OS by writing our own `_write` function to communicate with a memory-mapped UART. |
+
+
+
+
+
 
  
 
