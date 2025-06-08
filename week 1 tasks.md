@@ -276,10 +276,7 @@ output that came:
 ![Screenshot 2025-06-06 211138](https://github.com/user-attachments/assets/c004cae7-28b1-444f-9f09-25305216333f)
 ![Screenshot 2025-06-06 211148](https://github.com/user-attachments/assets/160592a8-c261-49be-8d59-a00b988c9ad6)
 
-I was not able to use run command inside gdb and asked the AI assistant about reasons possible for this :
-Because gdb is unable to combine printf command and was not able to comprehend the (include <stdio.h>)
-
-So, I ran an alternative c file named sample.c as follows and that was able to follow run command:
+### I was not able to use run command inside gdb and asked the AI assistant about reasons possible for this : Because gdb is unable to combine printf command and was not able to comprehend the (include <stdio.h>) . So, I ran an alternative c file named sample.c as follows and that was able to follow run command:
 ![Screenshot 2025-06-07 212307](https://github.com/user-attachments/assets/5257cdbd-e47c-4f28-b7d5-d2f50e7e42ee)
 
 ![Screenshot 2025-06-06 222140](https://github.com/user-attachments/assets/5f5a34f9-9f90-4490-9c12-1c84308e5be2)
@@ -713,7 +710,145 @@ riscv32-unknown-elf-gcc -nostartfiles -o ira.elf ira.c syscalls1.c
 qemu-system-riscv32 -nographic -machine sifive_e -kernel ira.elf
 ```
 
-# Task 17:
+# Task 17: Endianness Check (Little vs Big Endian)
+
+### Determine the endianness of a RISC-V RV32 system using a union trick to inspect byte ordering
+In little-endian systems (like RV32 by default), the least significant byte of a multi-byte value is stored at the **lowest** memory address.
+
+
+main.c
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+
+int main() {
+    union {
+        uint32_t value;
+        uint8_t bytes[4];
+    } test;
+
+    test.value = 0x01020304;
+
+    printf("Byte 0: 0x%02x\n", test.bytes[0]);
+    printf("Byte 1: 0x%02x\n", test.bytes[1]);
+    printf("Byte 2: 0x%02x\n", test.bytes[2]);
+    printf("Byte 3: 0x%02x\n", test.bytes[3]);
+
+    while (1);
+    return 0;
+}
+```
+ Compilation Command
+
+```bash
+riscv32-unknown-elf-gcc -Wall -O2 -ffreestanding -nostdlib \
+  -mabi=ilp32 -march=rv32imac_zicsr \
+  -o endian.elf main.c syscalls.c crt0.S -T link.ld -lc -lgcc
+```
+Run on QEMU
+
+```bash
+qemu-system-riscv32 -nographic -machine virt -bios none \
+  -kernel endian.elf -serial mon:stdio
+```
+
+link.ld
+
+```ld
+ENTRY(_start)
+
+SECTIONS {
+  . = 0x80000000;
+
+  .text : {
+    *(.init)
+    *(.text*)
+  }
+
+  .rodata : {
+    *(.rodata*)
+  }
+
+  .data : {
+    *(.data*)
+  }
+
+  .bss : {
+    __bss_start = .;
+    *(.bss*)
+    *(COMMON)
+    __bss_end = .;
+    . = ALIGN(4);
+    _stack_top = . + 0x1000;
+    _end = .;
+  }
+}
+```
+crt0.S (Minimal Startup)
+
+```asm
+.section .init
+.global _start
+_start:
+    la a0, __bss_start
+    la a1, __bss_end
+1:
+    beq a0, a1, 2f
+    sw zero, 0(a0)
+    addi a0, a0, 4
+    j 1b
+2:
+    call main
+1:  j 1b
+```
+syscalls.c (Minimal Syscalls)
+
+```c
+#include <sys/stat.h>
+#include <stdint.h>
+
+extern int _end;
+static char *heap_end = (char *)&_end;
+
+caddr_t _sbrk(int incr) {
+    char *prev_heap_end = heap_end;
+    heap_end += incr;
+    return (caddr_t)prev_heap_end;
+}
+
+int _write(int file, char *ptr, int len) {
+    for (int i = 0; i < len; i++) {
+        volatile char *uart = (char *)0x10000000;
+        *uart = ptr[i];
+    }
+    return len;
+}
+
+int _read(int file, char *ptr, int len) { return 0; }
+int _close(int file) { return -1; }
+int _fstat(int file, struct stat *st) { return 0; }
+int _lseek(int file, int ptr, int dir) { return 0; }
+int _isatty(int file) { return 1; }
+```
+
+![Screenshot 2025-06-08 213003](https://github.com/user-attachments/assets/3f6d897a-99fb-4d06-921d-07a30f962079)
+![Screenshot 2025-06-08 213434](https://github.com/user-attachments/assets/03ed210c-6f5e-43c5-b9e8-6d37ba0d18e6)
+![Screenshot 2025-06-08 213631](https://github.com/user-attachments/assets/64592e4b-448f-47d7-92ee-f9cb5e5a03c6)
+![Screenshot 2025-06-08 213809](https://github.com/user-attachments/assets/0568ee79-082d-4b21-82c7-3a3e6a2d6a57)
+
+![Screenshot 2025-06-08 221727](https://github.com/user-attachments/assets/f22e23a5-68ae-4614-8504-1aac09553159)
+
+### My file got compiled but qemu is unable to show the output as it's cursor infinitely got stuck and could be resolved by ctrl A + X
+
+## 📘 What is RISC-V?
+
+* RISC-V is an **open Instruction Set Architecture (ISA)** — a blueprint that defines the instructions a processor can execute.
+* ❌ It is **not** a processor, Verilog code, or a physical chip.
+* ✅ It **can** be implemented in hardware using languages like Verilog.
+* This decoupling is critical — like a programming language is separate from its compiler, RISC-V is separate from the CPU that implements it.
+## 📅 Why We Did These Tasks
+
 
 The weekly tasks were designed to build our understanding of embedded systems using RISC-V from the ground up. Each step removed layers of abstraction that modern operating systems usually hide from us.
 
