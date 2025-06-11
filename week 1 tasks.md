@@ -308,15 +308,8 @@ qemu-riscv64 ./hello.elf
 
 
 ```
-</details>
 
-Step 3: Debugging using GDB with QEMU
-  
-Start QEMU with GDB server enabled:
 
-```bash
-qemu-system-riscv32 -nographic -machine sifive_e -kernel ira.elf -S -gdb tcp::1234
-```
 output :
 
 ![Screenshot 2025-06-11 220234](https://github.com/user-attachments/assets/60d43683-6344-49a7-b2a2-670bb9c6d2b9)
