@@ -294,18 +294,19 @@ This is essential if you do not have access to real hardware yet.
 
 Step 1: Compile your bare-metal program with debug symbols
 
-Use the following command to compile your C program (`ira.c`) with the linker script (`link.ld`) and include debug info:
+Use the following command to compile your C program (`hello.c`) and include debug info:
 
 ```bash
-riscv32-unknown-elf-gcc -g -nostdlib -nostartfiles -T link.ld -o ira.elf ira.c
+riscv64-linux-gnu-gcc -static -o hello.elf hello.c
 ```
 
 Step 2: Run the ELF using QEMU
 Use QEMU's RISC-V system emulator to run your ELF and get UART output:
 
 ```bash
+qemu-riscv64 ./hello.elf
 
-qemu-system-riscv32 -nographic -machine sifive_e -kernel ira.elf
+
 ```
 </details>
 
@@ -316,37 +317,11 @@ Start QEMU with GDB server enabled:
 ```bash
 qemu-system-riscv32 -nographic -machine sifive_e -kernel ira.elf -S -gdb tcp::1234
 ```
--S tells QEMU to start paused (waits for GDB)
+output :
 
--gdb tcp::1234 opens TCP port 1234 for GDB remote debugging
+![Screenshot 2025-06-11 220234](https://github.com/user-attachments/assets/60d43683-6344-49a7-b2a2-670bb9c6d2b9)
+![Screenshot 2025-06-11 220324](https://github.com/user-attachments/assets/10c189d0-d977-4a2a-a123-95abe74a2e7f)
 
-In another terminal, start GDB:
-
-```bash
-
-riscv32-unknown-elf-gdb ira.elf
-```
-
-Connect to QEMU's GDB server:
-
-```gdb
-(gdb) target remote :1234
-```
-
-Use GDB commands:
-```gdb
-
-- info registers
-```
-
-Shows the current values of CPU registers (e.g., ra, sp, gp, a0, etc.)
-
-![image](https://github.com/user-attachments/assets/2ccd5a2e-2c10-4205-9dc8-52fba536a24a)
-on a new window terminal simultaneously :
-
-![Screenshot 2025-06-06 231906](https://github.com/user-attachments/assets/9a9270d3-6750-434a-a73d-811113cb3900)
-![Screenshot 2025-06-06 231949](https://github.com/user-attachments/assets/0df11f99-a035-4366-8e29-7ff7047d7477)
- The terminal ran an infinite continue command until stopped by ctrlA+x
 
  # Task 8: Exploring GCC Optimisation
 
