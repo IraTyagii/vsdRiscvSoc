@@ -345,10 +345,9 @@ Command line diff side-by-side:
 ```bash
 diff ira_O0.s ira_O2.s
 ```
+output
 
 ![Screenshot 2025-06-06 235907](https://github.com/user-attachments/assets/6f0ded1e-d410-4f5e-93fd-c7fe258b435a)
-![Screenshot 2025-06-06 235639](https://github.com/user-attachments/assets/0e57f619-af3c-4b66-b10e-83e4bdc5d27f)
-![Screenshot 2025-06-06 235722](https://github.com/user-attachments/assets/ac94e9ed-23ad-460e-a746-3e1020ecd612)
 
 Step 3: Key Differences to Look For and Why They Occur
 
